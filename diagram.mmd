@@ -1,0 +1,89 @@
+graph TB
+    %% Internet and Entry Points
+    Internet([Internet]) --> IGW((Internet Gateway))
+    
+    %% Public Subnets
+    IGW --> PubA[Public Subnet A<br/>10.0.1.0/24]
+    IGW --> PubB[Public Subnet B<br/>10.0.2.0/24]
+    
+    %% NAT Gateways
+    PubA --> NATA[NAT Gateway A]
+    PubB --> NATB[NAT Gateway B]
+    
+    %% Private Subnets
+    NATA --> PrivA[Private Subnet A<br/>10.0.10.0/24]
+    NATB --> PrivB[Private Subnet B<br/>10.0.20.0/24]
+    
+    %% Load Balancer
+    PrivA --> ALB[Application Load Balancer]
+    PrivB --> ALB
+    
+    %% ECS Cluster and Tasks
+    ALB -->|HTTP/80| ECS[ECS Cluster: pente-dev]
+    ECS -->|Fargate| TaskA[ECS Task A<br/>App Service]
+    ECS -->|Fargate| TaskB[ECS Task B<br/>App Service]
+    
+    %% Database Subnets
+    TaskA --> DBA[DB Subnet A<br/>10.0.100.0/24]
+    TaskB --> DBB[DB Subnet B<br/>10.0.200.0/24]
+    
+    %% Database Services
+    DBA --> RDS[(RDS PostgreSQL<br/>Multi-AZ)]
+    DBB --> RDS
+    RDS --> RDSReplica[(Read Replica)]
+    
+    %% Cache
+    PrivA --> Cache((ElastiCache<br/>Redis))
+    PrivB --> Cache
+    
+    %% Configuration
+    TaskA --> SSM((SSM Parameter<br/>Store))
+    TaskB --> SSM
+    
+    %% Storage
+    S3State[S3: Terraform State]
+    S3Assets[S3: Static Assets]
+    
+    %% Security Services
+    Guard[GuardDuty]
+    Config[AWS Config Rules]
+    KMS[KMS Keys]
+    
+    %% Logging Pipeline
+    TaskA --> RawLogs[Raw Log Group]
+    TaskB --> RawLogs
+    RDS --> CW[CloudWatch]
+    ALB --> CW
+    
+    RawLogs -->|Subscription| PiiLambda[PII Stripper<br/>Lambda]
+    PiiLambda --> CleanLogs[Sanitized Log Group]
+    
+    CW --> Dashboard[CloudWatch<br/>Dashboard]
+    CleanLogs --> Dashboard
+    CW -->|Alerts| SNS((SNS Topic))
+    
+    %% CI/CD Pipeline
+    GitHub[GitHub Repo] -->|Trigger| Actions[GitHub Actions]
+    Actions -->|Build| Docker[Docker Image]
+    Actions -->|Push| ECR[ECR Repository]
+    Actions -->|Deploy| ECS
+    Actions -->|Scan| Gemini[Google Gemini API]
+    Gemini -->|Report| Actions
+    
+    %% Styling
+    classDef aws fill:#ff9900,stroke:#232f3e,stroke-width:2px,color:#fff
+    classDef compute fill:#f58536,stroke:#232f3e,stroke-width:2px,color:#fff
+    classDef database fill:#3f48cc,stroke:#232f3e,stroke-width:2px,color:#fff
+    classDef storage fill:#569a31,stroke:#232f3e,stroke-width:2px,color:#fff
+    classDef security fill:#dd344c,stroke:#232f3e,stroke-width:2px,color:#fff
+    classDef cicd fill:#6b46c1,stroke:#232f3e,stroke-width:2px,color:#fff
+    classDef monitoring fill:#0ea5e9,stroke:#232f3e,stroke-width:2px,color:#fff
+    classDef network fill:#64748b,stroke:#232f3e,stroke-width:2px,color:#fff
+    
+    class IGW,PubA,PubB,PrivA,PrivB,DBA,DBB,NATA,NATB network
+    class ALB,ECS,TaskA,TaskB compute
+    class RDS,RDSReplica,Cache database
+    class S3State,S3Assets,ECR storage
+    class Guard,Config,KMS,SSM security
+    class GitHub,Actions,Docker,Gemini cicd
+    class CW,Dashboard,RawLogs,CleanLogs,PiiLambda,SNS monitoring
